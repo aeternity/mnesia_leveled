@@ -1,0 +1,2 @@
+mnesia_leveled_xform.
+{'*', [{parse_transform, mnesia_leveled_xform},debug_info]}.

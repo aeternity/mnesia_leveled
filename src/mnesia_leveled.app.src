@@ -1,0 +1,12 @@
+{application, mnesia_leveled,
+ [
+  {description, "Leveled backend plugin for Mnesia"},
+  {vsn, "1.0"},
+  {modules, [mnesia_leveled, mnesia_leveled_app,
+             mnesia_leveled_params, mnesia_leveled_sup,
+             mnesia_leveled_tuning]},
+  {registered, []},
+  {mod, {mnesia_leveled_app, []}},
+  {env, []},
+  {applications, [kernel, stdlib, leveled]}
+ ]}.
