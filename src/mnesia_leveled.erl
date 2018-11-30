@@ -53,7 +53,8 @@
 -export([show_table/1,
          show_table/2,
          show_table/3,
-         fold/6]).
+         fold/6,
+         get_ref/2]).
 
 %%
 %% BACKEND CALLBACKS
@@ -624,7 +625,7 @@ last(Alias, Tab) ->
                 end, '$end_of_table'},
     {async, Runner} =
         leveled_bookie:book_indexfold(
-          Ref, ?DATA_BUCKET, FoldAccT, {?IX_REV, null, null}, {false, null}),
+          Ref, ?DATA_BUCKET, FoldAccT, {?IX_REV, <<>>, <<255>>}, {false, undefined}),
     run_fold(Runner).
 
 
@@ -724,7 +725,7 @@ prev(Alias, Tab, Key0) ->
                 end, '$end_of_table'},
     {async, Runner} =
         leveled_bookie:book_indexfold(
-          Ref, ?DATA_BUCKET, FoldAccT, {?IX_REV, RevK, null}, {false, null}),
+          Ref, ?DATA_BUCKET, FoldAccT, {?IX_REV, RevK, <<255>>}, {false, undefined}),
     run_fold(Runner).
 
 repair_continuation(Cont, _Ms) ->
