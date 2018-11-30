@@ -271,7 +271,7 @@ init_backend() ->
 %% Prevent reloading of modules in leveled itself during runtime, since it
 %% can lead to inconsistent state in leveled and silent data corruption.
 stick_leveled_dir() ->
-    case code:which(leveled) of
+    case code:which(leveled_bookie) of
         BeamPath when is_list(BeamPath), BeamPath =/= "" ->
             Dir = filename:dirname(BeamPath),
             case code:stick_dir(Dir) of
@@ -1370,7 +1370,7 @@ map_vars([H|T], P) ->
 map_vars([], _) ->
     [].
 
-select_traverse(K, V, Limit, Pfx, MS, Sel, AccKeys, {'$sel_cont', K}) ->
+select_traverse(K, _V, _Limit, _Pfx, _MS, _Sel, _AccKeys, {'$sel_cont', K}) ->
     [];
 select_traverse(K, V, Limit, Pfx, MS, #sel{tab = Tab} = Sel, AccKeys, Acc) ->
     case is_prefix(Pfx, K) of
