@@ -663,7 +663,7 @@ lookup_bag(Ref, K, EncK, KP) ->
         {fun(_Bucket, Kb, V, Acc) ->
                  case Kb of
                      <<EncK:Sz/binary, _:?BAG_CNT>> ->
-                         [{setelement(KP, decode_val(V), K)}|Acc];
+                         [setelement(KP, decode_val(V), K)|Acc];
                      _ ->  %% shouldn't happen?
                          throw({stop_fold, Acc})
                  end
@@ -1092,7 +1092,7 @@ ix_add(RevK) ->
 ix_rm(bag, K) ->
     Sz = bit_size(K),
     SzK = Sz-?BAG_CNT,
-    <<Ks:SzK, N:?BAG_CNT>> = K,
+    <<Ks:SzK/bitstring, N:?BAG_CNT>> = K,
     ix_rm(bag_revkey(Ks, N));
 ix_rm(_, K) ->
     ix_rm(revkey(K)).
@@ -1242,19 +1242,16 @@ ets_delete_info(Ets, Item) ->
     ets:delete(Ets, {info, Item}).
 
 leveled_insert_info(Ref, Item, Val) ->
-    EncKey = info_key(Item),
+    EncKey = encode_key(Item),
     EncVal = encode_val(Val),
     leveled_bookie:book_put(Ref, ?INFO_BUCKET, EncKey, EncVal, []).
 
 leveled_delete_info(Ref, Item) ->
-    EncKey = info_key(Item),
+    EncKey = encode_key(Item),
     leveled_bookie:book_delete(Ref, ?INFO_BUCKET, EncKey, []).
 
 info_obj(Item, Val) ->
-    {info_key(Item), encode_val(Val)}.
-
-info_key(Item) ->
-    <<?INFO_TAG, (encode_key(Item))/binary>>.
+    {encode_key(Item), encode_val(Val)}.
 
 delete_info_(Item, #st{ets = Ets, ref = Ref}) ->
     leveled_delete_info(Ref, Item),
@@ -1458,7 +1455,8 @@ decode_key(CodedKey) ->
     case sext:partial_decode(CodedKey) of
         {full, Result, _} ->
             Result;
-        _ ->
+        _Other ->
+            lager:error("Unexpected: sext:partial_decode(~p) -> ~p~n", [CodedKey, _Other]),
             error(badarg, CodedKey)
     end.
 
