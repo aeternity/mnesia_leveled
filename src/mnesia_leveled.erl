@@ -1304,6 +1304,8 @@ do_select_(Ref, #sel{keypat = Pfx,
     case book_data_fold(F, Acc, {StartKey, null}, Ref) of
         L when is_list(L), Limit==infinity ->
             lists:reverse(L);
+        {L, '$end_of_table'} when Limit==infinity ->
+            L;
         [] when is_integer(Limit) ->
             '$end_of_table';
         L when is_list(L), is_integer(Limit) ->
