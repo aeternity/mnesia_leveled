@@ -350,21 +350,37 @@ prefixes(_) ->
 %% set is OK as ordered_set is a kind of set.
 check_definition(Alias, Tab, Nodes, Props) ->
     Id = {Alias, Nodes},
-    Props1 = lists:map(
-               fun({type, T} = P) ->
-                       if T==set; T==ordered_set; T==bag ->
-                               P;
-                          true ->
-                               mnesia:abort({combine_error,
-                                             Tab,
-                                             [Id, {type,T}]})
-                       end;
-                  ({user_properties, _} = P) ->
-                       %% should perhaps verify leveled options...
-                       P;
-                  (P) -> P
-               end, Props),
-    {ok, Props1}.
+    {ok, lists:map(
+           fun({type, T} = P) ->
+                   if T==set; T==ordered_set; T==bag ->
+                           P;
+                      true ->
+                           mnesia:abort({combine_error,
+                                         Tab,
+                                         [Id, {type,T}]})
+                   end;
+              ({user_properties, UPs} = P) ->
+                   case lists:keyfind(?MODULE, 1, UPs) of
+                       {_, MyPs} when is_list(MyPs) ->
+                           validate_my_props(MyPs, Tab),
+                           P;
+                       {_, _} ->
+                           mnesia:abort({badarg,Tab,P});
+                       false ->
+                           P
+                   end;
+              (P) -> P
+           end, Props)}.
+
+validate_my_props([{maintain_size, Bool} = P|T], Tab) ->
+    if is_boolean(Bool) ->
+            validate_my_props(T, Tab);
+       true ->
+            mnesia:abort({badarg,Tab,P})
+    end;
+validate_my_props([], _) ->
+    ok.
+
 
 %% -> ok | {error, exists}
 create_table(_Alias, Tab, _Props) ->
@@ -374,7 +390,7 @@ load_table(Alias, Tab, _LoadReason, Opts) ->
     Type = proplists:get_value(type, Opts),
     LedUserProps = proplists:get_value(
                      leveled_opts, proplists:get_value(
-                                     user_properties, Opts, []), []),
+                                     user_properties, Opts, []), default_open_opts()),
     StorageProps = proplists:get_value(
                      leveled, proplists:get_value(
                                 storage_properties, Opts, []), LedUserProps),
@@ -939,7 +955,7 @@ leveled_open_opts_(LedOpts) ->
       end, default_open_opts(), LedOpts).
 
 default_open_opts() ->
-    [].
+    [{log_level, error}].
 
 destroy_recreate(Tab, MPd, LedOpts) ->
     assert_proper_mountpoint(Tab, MPd),
@@ -1070,11 +1086,15 @@ book_add(K, V, RevK, #st{ref = Ref, maintain_size = false} = St) ->
 book_add(K, V, RevK, #st{ref = Ref, ets = Ets, maintain_size = true} = St) ->
     CurSz = read_info(size, 0, Ets),
     NewSz = CurSz + 1,
-    {Ki, Vi} = info_obj(size, NewSz),
     leveled_bookie:book_put(Ref, ?DATA_BUCKET, K, V, [ix_add(RevK)]),
+    update_size(NewSz, St).
+
+update_size(Sz, #st{ref = Ref, ets = Ets} = St) ->
+    {Ki, Vi} = info_obj(size, Sz),
     leveled_bookie:book_put(Ref, ?INFO_BUCKET, Ki, Vi, []),
-    ets_insert_info(Ets, size, NewSz),
+    ets_insert_info(Ets, size, Sz),
     St.
+    
 
 book_put(Ref, K, V) ->
     RevK = revkey(K),
@@ -1191,36 +1211,25 @@ do_match_delete(Pat, #st{ref = Ref, tab = Tab, type = Type} = St) ->
     end.
 
 recover_size_info(#st{ ref = Ref
-		     , tab = Tab
-		     , type = Type
 		     , maintain_size = MaintainSize
 		     } = St) ->
-    %% TODO: shall_update_size_info is obsolete, remove
-    case shall_update_size_info(Tab) of
-	true ->
-	    Sz = do_fold(Ref, Tab, Type, fun(_, Acc) -> Acc+1 end,
-			 0, [{'_',[],['$_']}], 3),
-	    write_info_(size, Sz, St);
-	false ->
-	    case MaintainSize of
-		true ->
-		    %% info initialized by leveled_to_ets/2
-		    %% TODO: if there is no stored size, recompute it
-		    ignore;
-		false ->
-		    %% size is not maintained, ensure it's marked accordingly
-		    delete_info_(size, St)
-	    end
-    end,
-    St.
-
-shall_update_size_info({_, index, _}) ->
-    false;
-shall_update_size_info(Tab) ->
-    property(Tab, update_size_info, false).
+    case MaintainSize of
+        true ->
+            %% info initialized by leveled_to_ets/2
+            Sz = book_data_fold(fun(_,_,_,Acc) -> Acc+1 end, 0, {null,null}, Ref),
+            update_size(Sz, St),
+            St;
+        false ->
+            %% size is not maintained, ensure it's marked accordingly
+            delete_info_(size, St),
+            St
+    end.
 
 should_maintain_size(Tab) ->
-    property(Tab, maintain_size, false).
+    my_property(Tab, maintain_size, false).
+
+my_property(Tab, Prop, Default) ->
+    proplists:get_value(Prop, property(Tab, ?MODULE, []), Default).
 
 property(Tab, Prop, Default) ->
     try mnesia:read_table_property(Tab, Prop) of

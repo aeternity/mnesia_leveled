@@ -60,10 +60,10 @@ create_tab(Type) ->
     ok.
 
 change_type([To|Types], From) ->
-    io:fwrite("changing from ~p to ~p~n", [From, To]),
+    ct:log("changing from ~p to ~p~n", [From, To]),
     {atomic, ok} = mnesia:change_table_copy_type(t, node(), To),
     ok = check_tab(),
-    io:fwrite("...ok~n", []),
+    ct:log("...ok~n", []),
     change_type(Types, To);
 change_type([], _) ->
     ok.

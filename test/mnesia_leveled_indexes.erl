@@ -58,8 +58,8 @@ fail(F, Args) ->
          error(should_fail)
     catch
         error:_ ->
-            io:fwrite("apply(~p, ~p, ~p) -> fails as expected~n",
-                      [?MODULE, F, Args])
+            ct:log("apply(~p, ~p, ~p) -> fails as expected~n",
+                   [?MODULE, F, Args])
     end.
 
 test(N, Type, T) ->
@@ -79,7 +79,7 @@ add_del_indexes() ->
     {atomic, ok} = mnesia:add_table_index(do1, a),
     {atomic, ok} = mnesia:del_table_index(l1, a),
     {atomic, ok} = mnesia:add_table_index(l1, a),
-    io:fwrite("add_del_indexes() -> ok~n", []).
+    ct:log("add_del_indexes() -> ok~n", []).
 
 test_index_plugin(Tab, Type, IxType) ->
     {atomic, ok} = mnesia:create_table(Tab, [{Type, [node()]},
@@ -101,7 +101,13 @@ test_index_plugin(Tab, Type, IxType) ->
             [{Tab,"foobar","sentence"}] = mnesia:dirty_index_read(
                                             Tab, <<"foo">>, {pfx})
     end,
-    io:fwrite("test_index_plugin(~p, ~p, ~p) -> ok~n", [Tab,Type,IxType]).
+    test_regular_operations(Tab),
+    ct:log("test_index_plugin(~p, ~p, ~p) -> ok~n", [Tab,Type,IxType]).
+
+test_regular_operations(Tab) ->
+    [_,_,_,_] = mnesia:dirty_match_object(Tab, mnesia:table_info(Tab,wild_pattern)),
+    [_,_,_,_] = mnesia:dirty_select(Tab, [{ '_', [], ['$_'] }]),
+    ok.
 
 test_index_plugin_mgmt() ->
     {aborted,_} = mnesia:create_table(x, [{index,[{unknown}]}]),
@@ -133,7 +139,7 @@ test_index(1, T) ->
     L2 = lists:sort(mnesia:dirty_index_read(T,x,3)),
     L2 = mnesia:dirty_index_read(T,y,b),
     L2 = lists:sort(mnesia:dirty_index_read(T,z,c)),
-    io:fwrite("test_index(1, ~p) -> ok~n", [T]),
+    ct:log("test_index(1, ~p) -> ok~n", [T]),
     ok;
 test_index(2, T) ->
     L1 = [{T,K,a,b,c} || K <- lists:seq(1,3)],
@@ -148,7 +154,7 @@ test_index(2, T) ->
     L2 = lists:sort(mnesia:dirty_index_read(T,x,3)),
     L2 = lists:sort(mnesia:dirty_index_read(T,y,b)),
     L2 = lists:sort(mnesia:dirty_index_read(T,z,c)),
-    io:fwrite("test_index(1, ~p) -> ok~n", [T]),
+    ct:log("test_index(1, ~p) -> ok~n", [T]),
     ok;
 test_index(3, T) ->
     L2 = [{T,K,x,y,z} || K <- lists:seq(4,6)],
@@ -163,7 +169,7 @@ test_index(3, T) ->
     L2 = mnesia:dirty_index_read(T,x,3),
     L2 = mnesia:dirty_index_read(T,y,b),
     L2 = mnesia:dirty_index_read(T,z,c),
-    io:fwrite("test_index(1, ~p) -> ok~n", [T]),
+    ct:log("test_index(1, ~p) -> ok~n", [T]),
     ok.
 
 indexes(1) ->

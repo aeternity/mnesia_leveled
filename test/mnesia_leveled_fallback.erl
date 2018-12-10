@@ -43,15 +43,15 @@ run() ->
                                               {e,5},
                                               {f,6}]],
     ok = mnesia:backup("bup2.BUP"),
-    io:fwrite("*****************************************~n", []),
+    ct:log("*****************************************~n", []),
     load_backup("bup0.BUP"),
     ?m([], mnesia:dirty_match_object(t, {t,'_','_'})),
     ?m([], mnesia:dirty_index_read(t,2,v)),
-    io:fwrite("*****************************************~n", []),
+    ct:log("*****************************************~n", []),
     load_backup("bup1.BUP"),
     ?m([{t,a,1},{t,b,2},{t,c,3}], mnesia:dirty_match_object(t, {t,'_','_'})),
     ?m([{t,b,2}], mnesia:dirty_index_read(t,2,v)),
-    io:fwrite("*****************************************~n", []),
+    ct:log("*****************************************~n", []),
     load_backup("bup2.BUP"),
     ?m([{t,a,1},{t,b,2},{t,c,3},
         {t,d,4},{t,e,5},{t,f,6}], mnesia:dirty_match_object(t, {t,'_','_'})),
@@ -62,15 +62,15 @@ run() ->
 load_backup(BUP) ->
     mnesia_leveled_tlib:trace(
       fun() ->
-              io:fwrite("loading backup ~s~n", [BUP]),
+              ct:log("loading backup ~s~n", [BUP]),
               ok = mnesia:install_fallback(BUP),
-              io:fwrite("stopping~n", []),
+              ct:log("stopping~n", []),
               mnesia:stop(),
               timer:sleep(3000),
-              io:fwrite("starting~n", []),
+              ct:log("starting~n", []),
               mnesia:start(),
               WaitRes = mnesia:wait_for_tables([t], 5000),
-              io:fwrite("WaitRes = ~p~n", [WaitRes])
+              ct:log("WaitRes = ~p~n", [WaitRes])
       end,
       mods(0)
      ).
