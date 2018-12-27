@@ -30,6 +30,7 @@ start_mnesia() ->
 
 start_mnesia(Mode) ->
     if Mode==reset ->
+            mnesia:stop(),
             mnesia:delete_schema([node()]),
             mnesia:create_schema([node()],
                                  [{backend_types,
