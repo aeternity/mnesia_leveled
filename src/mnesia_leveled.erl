@@ -598,15 +598,33 @@ sender_handle_info(_Msg, _Alias, _Tab, _ReceiverPid, Cont) ->
     %% ignore - we don't expect any message from the receiver
     {chunk_fun(), Cont}.
 
-receiver_first_message(_Pid, {first, Size} = _Msg, _Alias, _Tab) ->
-    {Size, _State = []}.
+%%
+%%  The receiver's part.
+%%
+-record(synch_r_st, {
+    start,
+    count
+}).
 
-receive_data(Data, Alias, Tab, _Sender, State) ->
+receiver_first_message(Pid, {first, Size} = _Msg, Alias, Tab) ->
+    mnesia_lib:important(
+        "Table ~p (~p) will receive data from ~p~n",
+        [Tab, Alias, node(Pid)]
+    ),
+    {Size, #synch_r_st{start = erlang:system_time(seconds), count = 0}}.
+
+receive_data(Data, Alias, Tab, _Sender, State = #synch_r_st{count = Count}) ->
     [insert(Alias, Tab, Obj) || Obj <- Data],
-    {more, State}.
+    {more, State#synch_r_st{count = Count + length(Data)}}.
 
-receive_done(_Alias, _Tab, _Sender, _State) ->
+receive_done(Alias, Tab, Sender, #synch_r_st{start = StartSec, count = Count}) ->
+    DurationSec = erlang:system_time(seconds) - StartSec,
+    mnesia_lib:important(
+        "Table ~p (~p) received ~p recs from ~p in ~ps~n",
+        [Tab, Alias, Count, node(Sender), DurationSec]
+    ),
     ok.
+
 
 %% End of table synch protocol
 %% ===========================================================
@@ -850,7 +868,7 @@ init({Alias, Tab, Type, LedOpts}) ->
 
 do_load_table(Tab, LedOpts) ->
     MPd = data_mountpoint(Tab),
-    ?dbg("** Mountpoint: ~p~n ~s~n", [MPd, os:cmd("ls " ++ MPd)]),
+    ?dbg("** Mountpoint: ~p~n ~s~n", [MPd, os:cmd("ls '" ++ MPd ++ "'")]),
     Ets = ets:new(tab_name(icache,Tab), [set, protected, named_table]),
     {ok, Ref} = open_leveled(MPd, LedOpts),
     leveled_to_ets(Ref, Ets),
@@ -1285,6 +1303,13 @@ proc_name(_Alias, Tab) ->
 %% PRIVATE SELECT MACHINERY
 %% ----------------------------------------------------------------------------
 
+% State for the select fold and continuation.
+% Needed to support fold with continuations.
+-record(select_st, {
+    limit,
+    acc
+}).
+
 do_select(Ref, Tab, Type, MS, Limit) ->
     do_select(Ref, Tab, Type, MS, false, Limit).
 
@@ -1307,17 +1332,17 @@ do_select_(Ref, #sel{keypat = Pfx,
                    {_, <<>>}             -> null;
                    _                     -> Pfx
                end,
-    F = fun(_, K, V, Acc1) ->
-                select_traverse(K, V, Limit, Pfx, MS, Sel, AccKeys, Acc1)
+    F = fun(_, K, V, #select_st{limit = Limit1, acc = Acc1}) ->
+                select_traverse(K, V, Limit1, Pfx, MS, Sel, AccKeys, Acc1)
         end,
-    case book_data_fold(F, Acc, {StartKey, null}, Ref) of
-        L when is_list(L), Limit==infinity ->
+    case book_data_fold(F, #select_st{limit = Limit, acc = Acc}, {StartKey, null}, Ref) of
+        #select_st{acc = L} when is_list(L), Limit==infinity ->
             lists:reverse(L);
         {L, '$end_of_table'} when Limit==infinity ->
             L;
-        [] when is_integer(Limit) ->
+        #select_st{acc = []} when is_integer(Limit) ->
             '$end_of_table';
-        L when is_list(L), is_integer(Limit) ->
+        #select_st{acc =  L} when is_list(L), is_integer(Limit) ->
             {lists:reverse(L), '$end_of_table'};
         {_,_} = Res ->
             Res
@@ -1378,14 +1403,14 @@ map_vars([H|T], P) ->
 map_vars([], _) ->
     [].
 
-select_traverse(K, _V, _Limit, _Pfx, _MS, _Sel, _AccKeys, {'$sel_cont', K}) ->
-    [];
+select_traverse(K, _V, Limit, _Pfx, _MS, _Sel, _AccKeys, {'$sel_cont', K}) ->
+    #select_st{limit = Limit, acc = []};
 select_traverse(K, V, Limit, Pfx, MS, #sel{tab = Tab} = Sel, AccKeys, Acc) ->
     case is_prefix(Pfx, K) of
 	true ->
 	    Rec = setelement(keypos(Tab), decode_val(V), decode_key(K)),
 	    case ets:match_spec_run([Rec], MS) of
-		[] -> Acc;
+		[] -> #select_st{limit = Limit, acc = Acc};
 		[Match] ->
                     Acc1 = if AccKeys ->
                                    [{K, Match}|Acc];
@@ -1418,8 +1443,8 @@ traverse_continue(K, 0, #sel{ref = Ref} = Sel, AccKeys, Acc) ->
             fun() ->
                     do_select_(Ref, Sel, AccKeys, {'$sel_cont', K})
             end}});
-traverse_continue(_K, _Limit, _Sel, _AccKeys, Acc) ->
-    Acc.
+traverse_continue(_K, Limit, _Sel, _AccKeys, Acc) ->
+    #select_st{limit = Limit, acc = Acc}.
 
 keypat([H|T], KeyPos) ->
     keypat(T, KeyPos, keypat_pfx(H, KeyPos)).
