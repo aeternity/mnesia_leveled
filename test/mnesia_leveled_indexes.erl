@@ -31,8 +31,7 @@ run() ->
     fail(test, [1, led, l1]), % doesn't support bag
     test(3, led, l1),
     add_del_indexes(),
-    {atomic,ok} = mnesia_schema:add_index_plugin(
-                    {pfx},mnesia_leveled, ix_prefixes),
+    {atomic,ok} = mnesia_schema:add_index_plugin({pfx}, mnesia_leveled, ix_prefixes),
     test_index_plugin(pr1, ram_copies, ordered),
     test_index_plugin(pr2, ram_copies, bag),
     test_index_plugin(pd1, disc_copies, ordered),
