@@ -1,7 +1,7 @@
 {"1.1.0",
 [{<<"leveled">>,
   {git,"https://github.com/martinsumner/leveled.git",
-       {ref,"b9ba3489b3e86d303a0b6282eb325284f092c479"}},
+       {ref,"4b967bee4aebe0ee170d47a4e0119e7fde620a03"}},
   0},
  {<<"lz4">>,
   {git,"https://github.com/szktty/erlang-lz4",
