@@ -1,11 +1,11 @@
 {"1.1.0",
 [{<<"leveled">>,
   {git,"https://github.com/martinsumner/leveled.git",
-       {ref,"4b967bee4aebe0ee170d47a4e0119e7fde620a03"}},
+       {ref,"5bc137e4ef90d55f1e0da216a5ef5801d2a3d813"}},
   0},
  {<<"lz4">>,
-  {git,"https://github.com/szktty/erlang-lz4",
-       {ref,"6bc5efe93bab327788bcde24374f16044b549dd8"}},
+  {git,"https://github.com/martinsumner/erlang-lz4",
+       {ref,"d407af5de71303b8e381df718d2e5d05eb775c59"}},
   1},
  {<<"sext">>,{pkg,<<"sext">>,<<"1.5.0">>},0}]}.
 [

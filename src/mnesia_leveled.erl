@@ -125,7 +125,7 @@
 
 -export([ix_prefixes/3]).
 
-
+-define(MNESIA_LEVELED_NO_DBG, true).
 %% ----------------------------------------------------------------------------
 %% DEFINES
 %% ----------------------------------------------------------------------------
@@ -454,15 +454,26 @@ close_table_(Alias, Tab) ->
 
 -ifndef(MNESIA_LEVELED_NO_DBG).
 pp_stack() ->
-    Trace = try throw(true)
-            catch
-                _:_ ->
-                    case erlang:get_stacktrace() of
-                        [_|T] -> T;
-                        [] -> []
-                    end
-            end,
-    pp_calls(10, Trace).
+    pp_calls(10, stacktrace()).
+
+-ifdef(OTP_RELEASE).
+stacktrace() ->
+    try throw(true)
+    catch
+        _:_:Trace -> ttail(Trace)
+    end.
+-else.
+stacktrace() ->
+    try throw(true)
+    catch
+        _:_ -> ttail(erlang:get_stacktrace())
+    end.
+-endif.
+
+ttail([_|T]) ->
+    T;
+ttail([]) ->
+    [].
 
 pp_calls(I, [{M,F,A,Pos} | T]) ->
     Spc = lists:duplicate(I, $\s),
