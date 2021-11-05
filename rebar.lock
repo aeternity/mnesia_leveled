@@ -1,7 +1,7 @@
-{"1.1.0",
+{"1.2.0",
 [{<<"leveled">>,
   {git,"https://github.com/martinsumner/leveled.git",
-       {ref,"5bc137e4ef90d55f1e0da216a5ef5801d2a3d813"}},
+       {ref,"2cb87f3a6e693b85e8c73c7064f6592039a83074"}},
   0},
  {<<"lz4">>,
   {git,"https://github.com/martinsumner/erlang-lz4",
@@ -10,5 +10,7 @@
  {<<"sext">>,{pkg,<<"sext">>,<<"1.5.0">>},0}]}.
 [
 {pkg_hash,[
- {<<"sext">>, <<"07D5D516DAA4C437B2F7DB99F6B2728C8AF939313479B1BEDC1995BB15936236">>}]}
+ {<<"sext">>, <<"07D5D516DAA4C437B2F7DB99F6B2728C8AF939313479B1BEDC1995BB15936236">>}]},
+{pkg_hash_ext,[
+ {<<"sext">>, <<"A81E9A673CC4573A76A633BFC4CE52E6798D4A6122D480E3CED27F40C6460D72">>}]}
 ].
